@@ -1,0 +1,36 @@
+        (
+		   (((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))
+           (()(POwns Nono M1))
+           (()(PMissile M1))
+           (((PMissile x)(POwns Nono x))(PSells West x Nono))
+           (((PMissile x))(PWeapon x))
+           (((PEnemy x America))(PHostile x))
+           (()(PAmerican West))
+           (()(PEnemy Nono America))
+          )
+)
+
+(PCriminal West)
+
+
+
+//------------------
+
+          
+           10. (()(POwns Nono M1))
+           11. (()(PMissile M1))
+           12. (()(PAmerican West))
+           13. (()(PEnemy Nono America))
+           14. (()(PSells West M1 Nono))
+           15. (()(PWeapon M1))
+           16. (()(PHostile West))
+           17. (()(PCriminal West))
+           
+
+           
+           1. (((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))
+           2. (((PMissile x)(POwns Nono x))(PSells West x Nono))
+           3. (((PMissile x))(PWeapon x))
+           4. (((PEnemy x America))(PHostile x))
+           
+
