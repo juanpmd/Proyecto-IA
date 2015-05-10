@@ -255,6 +255,7 @@
 
 ;=================FUNCION ENCONTROHECHO==================
 ;SE USA EN FUNCION: forward
+;Esta funcion devuelve todos los hechos posibles resultantes del kb
 (defun encontrohecho (hechosfinales hecho)
 	(cond ((null hechosfinales) nil)
 		((equal (car hechosfinales) hecho) t)
@@ -280,6 +281,79 @@
 ;Salida:
 ; T
 
+
+
+
+
+
+
+
+
+
+
+
 ;-------------------------------------------------------------------------------------------
 ;__________________________________Razonamiento Hacia Atras_________________________________ 
+
+;=================FUNCION CAMBIOVARBACKWARD==================
+;SE USA EN FUNCION: expmodificada
+;Esta funcion cambia todas las variables del antecedente por los valores nuevos
+(defun cambiovarbackward (expresion variables valores)
+	(cond ((null variables) expresion)
+		(t (cambiovariables (remplazo expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
+	)
+)
+;Entrada:
+;(cambiovariables '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))) '(x) '(West))
+;Salida:
+;(((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z)) (PCRIMINAL WEST))
+
+
+
+
+;=================FUNCION ENCONTROHECHO==================
+;SE USA EN FUNCION: 
+
+(defun basetrabajo (kb hecho)
+	(cond ((null kb) nil)
+		((equal (caadar kb) (car hecho)) (expmodificada (car kb) hecho))
+			(t (basetrabajo (cdr kb) hecho))
+	)
+)
+
+;Entrada:
+;(basetrabajo '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))) '(PCriminal West))
+;Salida:
+;
+
+
+(defun expmodificada (expresion hecho)
+	(cond ((null expresion) nil)
+		((equal (caadr expresion) (car hecho))(cambiovarbackward (car expresion) (variable (cadr expresion) hecho) (valorvariable (cadr expresion) hecho)))
+			(t nil)
+	)
+)
+;(expmodificada '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) '(PCriminal West))
+
+;(variable '(PCriminal x) '(PCriminal West))
+;(valorvariable '(PCriminal x) '(PCriminal West))
+;(cambiovarbackward '((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z)) '(x) '(West))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
