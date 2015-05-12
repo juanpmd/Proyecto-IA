@@ -292,8 +292,15 @@
 
 
 
+
+;-------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------
 ;-------------------------------------------------------------------------------------------
 ;__________________________________Razonamiento Hacia Atras_________________________________ 
+;-------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------
+
 
 ;=================FUNCION CAMBIOVARBACKWARD==================
 ;SE USA EN FUNCION: expmodificada
@@ -323,7 +330,7 @@
 ;((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z))
 
 ;=================FUNCION ENCONTROHECHO==================
-;SE USA EN FUNCION: desenrollarbackward
+;SE USA EN FUNCION: backward
 ;Esta funcion trae de acuerdo a un hecho que se busca, sus antecedentes con el cual se empieza a trabajar el backward
 (defun basetrabajo (kb hecho)
 	(cond ((null kb) nil)
@@ -336,20 +343,6 @@
 ;(basetrabajo '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))) '(PCriminal West))
 ;Salida:
 ;((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ;=================FUNCION HECHOSEXP==================
 ;SE USA EN FUNCION: estahecho
@@ -413,7 +406,7 @@
 ;T
 
 ;=================FUNCION ESTAHECHO==================
-;SE USA EN FUNCION: 
+;SE USA EN FUNCION: backward
 ;Esta funcion nos devuelve T si hay un hecho que cumpla la expresion que se ingresa
 (defun estahecho (expresion hechoskb)
 	(cond ((null hechoskb) nil)
@@ -426,7 +419,7 @@
 ;T
 
 ;=================FUNCION HAYANT==================
-;SE USA EN FUNCION: desentollarbackward
+;SE USA EN FUNCION: backward
 ;Esta funcion mira si hay una expresion en donde la expresion de entrada es el consecuente y exista un antecedente para el
 (defun hayant (expresion expresioneskb)
 	(cond ((null expresioneskb) nil)
@@ -439,56 +432,200 @@
 ;Salida:
 ; T
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(defun nuevasexp (exp expresioneskb)
-
-)
-
-
-
-
-
-
-
-
-
-
-
-;=================FUNCION DESENROLLAR BACKWARD==================
-;SE USA EN FUNCION: 
-;Esta funcion hace el trabajo pesado, coge cada bloque de la base de trabajo y la desenrolla, si hay un hecho que la supla
-;quita ese bloque, sino busca los antecedentes que lo complan, asi hasta que quede vacia la expresion.
-(defun desenrollarbackward (expresion kb)
-	(cond ((null expresion) t)
-		((equal (estahecho (car expresion) (hechoskb kb)) t)(desenrollarbackward (cdr expresion) kb))
-			((equal (hayant expresion (expresioneskb kb)) t)(desenrollarbackward (append (nuevasexp expresion (expresioneskb kb)) (cdr expresion)) kb))
-			;Revisar que ese append este funcionando
+;=================FUNCION VARIABLESIMPLE==================
+;SE USA EN FUNCION: variablescom, sacarvariables
+;Esta funcion saca las variables del consecuente deuna funcion o de un bloque del antecedente
+(defun variablesimple (expresion resultado)
+	(cond ((null expresion) resultado)
+		((equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car expresion)) t)
+			(variablesimple (cdr expresion) (append resultado (list (car expresion)))))
+				(t (variablesimple (cdr expresion) resultado))
 	)
 )
-
 ;Entrada:
-;
+;(variablesimple '(POwns x y West) '())
 ;Salida:
-;
+; (X Y)
+
+;=================FUNCION VARIABLESCOM==================
+;SE USA EN FUNCION: sacarvariables
+;Esta funcion saca las variables que hay en el antecedente de una expresion
+(defun variablescom (antexp resultado)
+	(cond ((null antexp) resultado)
+		(t (variablescom (cdr antexp) (append (variablesimple (car antexp) '()) resultado)))
+	)
+)
+;Entrada:
+;(variablescom '((PMissile x)(POwns y x)) '())
+;Salida:
+;(Y X X)
+
+;=================FUNCION SACARVARIABLES==================
+;SE USA EN FUNCION: modificacion, hayextra
+;consexp es el consecuente de la expresion, antexp es el antecedente de la expresion
+;Cuando use esta funcion debo usar algo que separa el antecedente y el consecuente
+(defun sacarvariables (antexp consexp)
+	(cond ((null antexp) nil)
+		(t (append (variablescom antexp '()) (variablesimple consexp '())))
+	)
+)
+;Entrada:
+;(sacarvariables '((PMissile x)(POwns y x)) '(PSells West x))
+;Salida:
+;(Y X X X)
+
+;=================FUNCION ESTAVAR==================
+;SE USA EN FUNCION: variablesfinales, hayextra, variablecambio
+(defun estavar (variable lista)
+	(cond ((null lista) nil)
+		((equal variable (car lista)) t)
+			(t (estavar variable (cdr lista)))
+	)
+)
+;Entrada:
+;(estavar 'x '(Y X X Z))
+;Salida:
+;T
+
+;=================FUNCION VARIABLESFINALES==================
+;SE USA EN FUNCION: hayextra, modificacion
+(defun variablesfinales (variables resultado)
+	(cond ((null variables) resultado)
+		((equal (estavar (car variables) resultado) nil)(variablesfinales (cdr variables) (append (list (car variables)) resultado)))
+			(t (variablesfinales (cdr variables) resultado))
+	)
+)
+;Entrada:
+;(variablesfinales '(Y X X W) '())
+;Salida:
+;(W X Y)
+
+;=================FUNCION VARIABLECAMBIO==================
+;SE USA EN FUNCION: hayextra, modificacion
+;varexpresion son todas las variables que se encuentre en la expresion, varconsecuente son solo las variables que hay en el
+;consecuente de esa expresion
+(defun variablecambio (varconsecuente varexpresion resultado)
+	(cond ((null varexpresion) resultado)
+		((equal (estavar (car varexpresion) varconsecuente) t)(variablecambio varconsecuente (cdr varexpresion) resultado))
+			(t (variablecambio varconsecuente (cdr varexpresion) (append resultado (list (car varexpresion)) )))
+	)
+)
+;Entrada:
+;(variablecambio '(W X) '(W X Y) '())
+;Salida:
+;(Y)
+
+;=================FUNCION EXPDEEXP==================
+;SE USA EN FUNCION: 
+;El expresioneskb se usa la funcion de arriba (expresioneskb (kb))
+;Esta funcion saca con un exp la expresion completa que lo suple
+(defun expdeexp (exp expresioneskb)
+	(cond ((null expresioneskb) nil)
+		((equal (car exp) (caadar expresioneskb))(car expresioneskb))
+			(t (expdeexp exp (cdr expresioneskb)))
+	)
+)
+;Entrada:
+;(expdeexp '(PHostile x) '((((PAMERICAN X)(PWEAPON Y)(PSELLS X Y Z)(PHOSTILE Z))(PCRIMINAL X))(((PMISSILE X)(POWNS NONO X))(PSELLS WEST X NONO))(((PMISSILE X))(PWEAPON X))(((PENEMY X AMERICA))(PHOSTILE X))))
+;Salida:
+;(((PENEMY X AMERICA)) (PHOSTILE X))
+
+;=================FUNCION HAYEXTRA==================
+;SE USA EN FUNCION: nuevasexp
+;Esta funcion recolecta todas las variables manejadas en una expresion y en el consecuente que se esta usando(exp)
+;si hay un problema de variables por inconsistencias, el resultado sera true y tendra que hacer reasignacion de variables
+(defun hayextra (exp expdeexp)
+	(cond ((null (variablesimple exp '())) nil)
+			((estavar (car (variablesimple exp '())) (variablecambio (variablesimple (cadr expdeexp) '()) (variablesfinales (sacarvariables (car expdeexp) (cadr expdeexp)) '()) '())) t)
+	)
+)
+;Entrada:
+;(hayextra '(PSells West y) '(((PMissile x)(POwns x y z))(PSells x z)))
+;Salida:
+;T
 
 
+;=================FUNCION MODIFICACION==================
+;SE USA EN FUNCION: nuevasexp
+;si la funcion hayextra da T, entonces hay que hacer una modificacion de la expresion
+;vars es variablecambio y nuevas es una lista de todas las variables posibles - las variables de expdeexp - variables exp
+;(a b c d e f g h i j k l m n o q r s u v w x y z) - varexpdeexp - varsexp 
+(defun modificacion (exp expdeexp)
+	(cond ((null exp) nil)
+		;(t (cambiarvarextra expdeexp vars nuevas))
+		;(t (cambiarvarextra expdeexp (variablecambio (variablesimple (cadr expdeexp) '()) (variablesfinales (sacarvariables (car expdeexp) (cadr expdeexp)) '()) '()) (variablecambio (sacarvariables (car expdeexp) (cadr expdeexp)) (variablecambio (variablesimple exp '()) '(a b c d e f g h i j k l m n o q r s u v w x y z) '()) '())))
+		(t (cambiovariables expdeexp (variablecambio (variablesimple (cadr expdeexp) '()) (variablesfinales (sacarvariables (car expdeexp) (cadr expdeexp)) '()) '()) (variablecambio (sacarvariables (car expdeexp) (cadr expdeexp)) (variablecambio (variablesimple exp '()) '(a b c d e f g h i j k l m n o q r s u v w x y z) '()) '())))
+	)
+)
+;Entrada:
+;(modificacion '(PSells West y) '(((PMissile x)(POwns x y z))(PSells x z)))
+;Salida:
+;(((PMISSILE X) (POWNS X A Z)) (PSELLS X Z))
 
+;=================FUNCION CAMBIOVARIABLES2==================
+;SE USA EN FUNCION: nuevasexp
+;Esta funcion cambia todas las variables de la expresion por los valores nuevos
+(defun cambiovariables2 (expresion variables valores)
+	(cond ((null variables) expresion)
+		((equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car variables)) t)
+			(cambiovariables2 (cambiofinal expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
+		(t (cambiovariables2 expresion (cdr variables) (cdr valores)))
+		;(t (cambiovariables2 (cambiofinal expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
+	)
+)
+;Entrada:
+;(cambiovariables2 '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) '(x) '(West))
+;Salida:
+;(((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z)) (PCRIMINAL WEST))
 
-;FALTA FUNCION BACKWARD QUE LLAMA A DESENROLLAR BACKWARD SOLO QUE LA EXPRESION ES LA QUE SE SACA DE LA FUNCION BASETRABAJO
+;=================FUNCION CAMBIOVARIABLES==================
+;SE USA EN FUNCION: backward
+;expdeexp es la expresion completa de el consecuente exp
+;Esta funcion lo que hace es que de acuerdo a una expresion y a un bloque de expresion, se haran los cambios de variables
+(defun nuevasexp (exp expdeexp)
+	(cond ((null exp) nil)
+		;((equal (hayextra exp expdeexp) t)(cambiovariables (modificacion exp expdeexp) (cdadr (modificacion exp expdeexp)) (cdr exp)))
+		;	(t (cambiovariables expdeexp (cdadr expdeexp) (cdr exp)))
+		;Estas documentadas devuelven toda la expresion y no solo los consecuentes
+		((equal (hayextra exp expdeexp) t)(car (cambiovariables2 (modificacion exp expdeexp) (cdadr (modificacion exp expdeexp)) (cdr exp))))
+			(t (car (cambiovariables2 expdeexp (cdadr expdeexp) (cdr exp))))
+	)
+)
+;Entrada:
+;(nuevasexp '(PSells West y) '(((PMissile x)(POwns x y z))(PSells x z)))
+;Salida:
+;((PMISSILE WEST) (POWNS WEST A Y))
+
+;=================FUNCION EXPRESIONDEEXP==================
+;SE USA EN FUNCION: backward
+;Esta funcion saca de acuerdo a un consecuente su expresion completa del kb
+(defun expresiondeexp (expresion kb)
+	(cond ((null kb) nil)
+		((equal (caadar kb) (car expresion)) (car kb))
+			(t (expresiondeexp expresion (cdr kb)))
+	)
+)
+;Entrada:
+;(expresiondeexp '(PHostile x) '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))))
+;Salida:
+;(((PENEMY X AMERICA)) (PHOSTILE X))
+
+;=================FUNCION BACKWARD==================
+;Esta es la funcion final de backward
+(defun backward (expresion kb)
+	(cond ((null expresion) t)
+		;((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (cdr expresion) kb))
+			;((equal (hayant expresion (expresioneskb kb)) t)(backward (append (nuevasexp (car expresion) (expresioneskb kb)) (cdr expresion)) kb))
+			;Revisar que ese append este funcionando
+			((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (cdr expresion) kb))
+			((equal (hayant (car expresion) (expresioneskb kb)) t)(backward (append (nuevasexp (car expresion) (expresiondeexp (car expresion) kb)) (cdr expresion)) kb))
+				(t nil)
+	)
+)
+;Entrada:
+;(backward '((PCriminal West)) '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))))
+;Salida:
+;T
 
 
 
