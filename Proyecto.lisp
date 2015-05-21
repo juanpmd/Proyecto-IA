@@ -5,21 +5,126 @@
 ;##########--Inteligencia Artificial--###########
 ;################################################
 ;-------------------------------------------------------------------------------------------
-;__________________________________Razonamiento Hacia Adelante______________________________ 
+;##################################Razonamiento Hacia Adelante############################## 
 
-;=================FUNCION BUSCARELEM==================
-;SE USA EN FUNCION: variable
-;Buscar un elemento en una lista
-(defun buscarelem (lista elem) ;falta colocar que funcione con numeros
-	(cond ((null lista) nil)
-		((equal (car lista) elem) t)
-			(t (buscarelem (cdr lista) elem))
+;=================FUNCION HECHOSKB==================
+;SE USA EN FUNCION: backward
+;Esta funcion saca todos los hechos de un kb
+(defun hechoskb (kb)
+	(cond ((null kb) nil)
+		((equal (caar kb) nil)(append (cdar kb)(hechoskb (cdr kb))))
+			(t (hechoskb (cdr kb)))
 	)
 )
 ;Entrada:
-;(buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) 'Nono)
+;(hechoskb '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(()(POwns Nono M2))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PMissile M2))(()(PMissile M3))(()(PEnemy Nono America))))
 ;Salida:
-; NIL
+;((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA))
+
+;==============FUNCION EXPRESIONESKB================
+;SE USA EN FUNCION: 
+;Esta funcion saca todas las expresiones de un kb
+(defun expresioneskb (kb)
+	(cond ((null kb) nil)
+		((equal (caar kb) nil)(expresioneskb (cdr kb)))
+			(t (append (list(car kb))(expresioneskb (cdr kb))))
+	)
+)
+;Entrada:
+;(expresioneskb '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(()(POwns Nono M2))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PMissile M2))(()(PMissile M3))(()(PEnemy Nono America))))
+;Salida:
+;((((PAMERICAN X) (PWEAPON Y) (PSELLS X Y Z) (PHOSTILE Z)) (PCRIMINAL X)) (((PMISSILE X) (POWNS NONO X)) (PSELLS WEST X NONO)) (((PMISSILE X)) (PWEAPON X)) (((PENEMY X AMERICA)) (PHOSTILE X)))
+
+;=================FUNCION HECHOSBLOQUE==================
+;SE USA EN FUNCION: hechosusables
+;Con un bloque, esta funcion saca todos los hechos que pueden suplirlo
+(defun hechosbloque (bloque hechos final)
+	(cond ((null hechos) final)
+		((equal (car bloque) (caar hechos))(hechosbloque bloque (cdr hechos) (append (list (car hechos)) final)))
+			(t (hechosbloque bloque (cdr hechos) final))
+	)
+)
+;Entrada:
+;(hechosbloque '(PMissile x) '((POWNS NONO M1)(PMISSILE M1)(POWNS NONO M2)(PAMERICAN WEST)(PMISSILE M2)(PMISSILE M3)(PENEMY NONO AMERICA)) '())
+;Salida:
+;((PMISSILE M3) (PMISSILE M2) (PMISSILE M1))
+
+
+;=================FUNCION NUEVOHECHO==================
+;SE USA EN FUNCION: 
+;De acuerdo a una expresion y unos hechos, esta funcion retorna todos los hechos que se usaran en esa expresion
+(defun hechosusables (expresion hechos finales)
+	(cond ((null (car expresion)) finales)
+		(t (hechosusables (append (list (cdar expresion)) (cdr expresion)) hechos (append finales (hechosbloque (caar expresion) hechos '()))))
+	)
+)
+;Entrada:
+;(hechosusables '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)) '())
+;Salida:
+;((PMISSILE M3) (PMISSILE M2) (PMISSILE M1) (POWNS NONO M2) (POWNS NONO M1))
+
+;=================FUNCION VARIABLE==================
+;SE USA EN FUNCION: modifexp
+;Esta funcion me devuelve las variables que voy a cambiar de un antecedente de acuerdo a un hecho
+(defun variable (antecedente hecho)
+	(cond ((null antecedente) nil)
+		((AND (equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car antecedente)) t)
+			(equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car hecho)) nil))
+				(append (list (car antecedente)) (variable (cdr antecedente) (cdr hecho))))
+			(t (variable (cdr antecedente) (cdr hecho)))
+	)
+)
+;Entrada:
+;(variable '(PSells x y z) '(PSells West M1 Nono))
+;Salida:
+; (X Y Z)
+
+;=================FUNCION VALORVARIABLE==================
+;SE USA EN FUNCION: modifexp
+(defun valorvariable (antecedente hecho)
+	(cond ((null antecedente) nil)
+		((AND (equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car antecedente)) t)
+			(equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car hecho)) nil))
+				(append (list (car hecho)) (valorvariable (cdr antecedente) (cdr hecho))))
+			(t (valorvariable (cdr antecedente) (cdr hecho)))
+	)
+)
+;Entrada:
+;(valorvariable '(PSells x y z) '(PSells West M1 Nono))
+;Salida:
+; (WEST M1 NONO)
+
+
+;=================FUNCION CAMBIOFINAL==================
+;SE USA EN FUNCION: cambiovariables
+;Esta funcion es para hacer el cambio total de toda una expresion
+(defun cambiofinal (listkb elem remp)
+	(cond ((null listkb) nil)
+		(t (append (list (remplazo (car listkb) elem remp))(remplazo (cdr listkb) elem remp)))
+	)
+)
+;Entrada:
+;(cambiofinal '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) 'x 'Juan)
+;Salida:
+;(((PAMERICAN JUAN) (PWEAPON Y) (PSELLS JUAN Y Z) (PHOSTILE Z)) (PCRIMINAL JUAN))
+
+
+
+
+
+;=================FUNCION BUSCARHECHO==================
+;SE USA EN FUNCION: modifexp
+;Esta funcion lo que hace es encontrar cual es el hecho que puede utilizar para el cambio de variable para un antecedente
+(defun buscarhecho (antecedente hechos)
+	(cond ((null hechos) nil)
+		((equal (caar hechos) (car antecedente))(car hechos))
+			(t (buscarhecho antecedente (cdr hechos)))
+	)
+)
+;Entrada:
+;(buscarhecho '(POwns Nono x) '((PMissile M1)(PAmerican West)(PEnemy Nono America)(POwns Nono M1)))
+;Salida:
+;(POWNS NONO M1)
 
 ;=================FUNCION CAMBIOLISTA==================
 ;SE USA EN FUNCION: remplazo
@@ -49,70 +154,169 @@
 ;((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z) (PCRIMINAL WEST))
 
 
-;=================FUNCION CAMBIOFINAL==================
-;SE USA EN FUNCION: cambiovariables
-;Esta funcion es para hacer el cambio total de toda una expresion
-(defun cambiofinal (listkb elem remp)
-	(cond ((null listkb) nil)
-		(t (append (list (remplazo (car listkb) elem remp))(remplazo (cdr listkb) elem remp)))
+
+
+;=================FUNCION BUSCARELEM==================
+;SE USA EN FUNCION: variable
+;Buscar un elemento en una lista
+(defun buscarelem (lista elem) ;falta colocar que funcione con numeros
+	(cond ((null lista) nil)
+		((equal (car lista) elem) t)
+			(t (buscarelem (cdr lista) elem))
 	)
 )
 ;Entrada:
-;(cambiofinal '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) 'x 'Juan)
+;(buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) 'Nono)
 ;Salida:
-;(((PAMERICAN JUAN) (PWEAPON Y) (PSELLS JUAN Y Z) (PHOSTILE Z)) (PCRIMINAL JUAN))
+; NIL
 
-
-
-
-
-
-
-
-
-
-
-;=================FUNCION HECHOSKB==================
-;SE USA EN FUNCION: forward
-;Esta funcion guarda los hechos de la entrada kb
-(defun hechoskb (kb)
-	(cond ((null kb) nil)
-		((equal (caar kb) nil)(append (cdar kb)(hechoskb (cdr kb))))
-			(t (hechoskb (cdr kb)))
+;=================FUNCION CAMBIOVARIABLES==================
+;SE USA EN FUNCION: modifexp
+;Esta funcion cambia todas las variables de la expresion por los valores nuevos
+(defun cambiovariables (expresion variables valores)
+	(cond ((null variables) expresion)
+		(t (cambiovariables (cambiofinal expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
 	)
 )
 ;Entrada:
-;(hechoskb '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))))
+;(cambiovariables '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) '(x) '(West))
 ;Salida:
-;((POWNS NONO M1) (PMISSILE M1) (PAMERICAN WEST) (PENEMY NONO AMERICA))
+;(((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z)) (PCRIMINAL WEST))
 
-;==============FUNCION EXPRESIONESKB================
-;SE USA EN FUNCION: forward
-;Esta funcion me retorna solo las expresiones de la kb
-(defun expresioneskb (kb)
-	(cond ((null kb) nil)
-		((equal (caar kb) nil)(expresioneskb (cdr kb)))
-			(t (append (list(car kb))(expresioneskb (cdr kb))))
+;=================FUNCION SIZE==================
+;SE USA EN FUNCION: hayvariables
+;Esta funcion dice el tamaño de una lista
+(defun size (lista)
+    (cond ((null lista) 0)
+      (t (+ 1 (size (cdr lista))))))
+
+;Entrada
+;(size '(a b c d e))
+;Salida
+;5
+
+;=================FUNCION VARIABLE==================
+;SE USA EN FUNCION: hayvariables
+;Esta funcion me devuelve las variables que voy a cambiar de un antecedente de acuerdo a un hecho
+(defun variable (antecedente hecho)
+	(cond ((null antecedente) nil)
+		((AND (equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car antecedente)) t)
+			(equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car hecho)) nil))
+				(append (list (car antecedente)) (variable (cdr antecedente) (cdr hecho))))
+			(t (variable (cdr antecedente) (cdr hecho)))
 	)
 )
 ;Entrada:
-;(expresioneskb '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))))
+;(variable '(PSells x y z) '(PSells West M1 Nono))
 ;Salida:
-;((((PAMERICAN X)(PWEAPON Y)(PSELLS X Y Z)(PHOSTILE Z))(PCRIMINAL X))(((PMISSILE X)(POWNS NONO X))(PSELLS WEST X NONO))(((PMISSILE X))(PWEAPON X))(((PENEMY X AMERICA))(PHOSTILE X)))
+; (X Y Z)
 
-;=================FUNCION ANTESTA==================
-;SE USA EN FUNCION: secumple
-;Esta funcion mira si un antecedente se encuentra en los hechos (no importa las variables que tiene)
-(defun antesta (antecedente hechos)
-	(cond ((null hechos) nil)
-		((equal (car antecedente) (caar hechos)) t)
-			(t (antesta antecedente (cdr hechos)))
+;=================FUNCION BUSCAANTECEDENTE==================
+;SE USA EN FUNCION: modifexp
+;(cambiovariables expresion (variable (antecendente) hecho) (valorvariable (antecendente) hecho))
+(defun buscantecedente (expresion hecho)
+	(cond ((null (car expresion)) nil)
+		((equal (caaar expresion) (car hecho))(caar expresion))
+			(t (buscantecedente (append (list (cdar expresion)) (cdr expresion)) hecho))
+	)
+)
+;Entrada
+;(buscantecedente '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '(PMissile M1))
+;Salida:
+;(Pmissile x)
+
+;=================FUNCION HAYVARIABLES==================
+;SE USA EN FUNCION: 
+;Esta funcion mira si hay variables que pueden ser reemplazadas en la expresion dado un hecho
+(defun hayvariables (expresion hecho)
+	(cond ((null (car expresion)) nil)
+		((AND (equal (caaar expresion) (car hecho)) (> (size (variable (caar expresion) hecho)) 0)) t)
+			(t (hayvariables (append (list (cdar expresion)) (cdr expresion)) hecho))
 	)
 )
 ;Entrada:
-;(antesta '(PEnemy x America) '((POwns Nono M1)(PMissile M1)(PAmerican West)(PEnemy Nono America)))
+;(hayvariables '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '(PMissile M1))
 ;Salida:
-; T
+;T
+
+;=================FUNCION VARIABLE==================
+;SE USA EN FUNCION: 
+;Esta funcion retorna T si los datos de ese hecho son validos con los de la expresion,
+;sino retorna nil para que esa expresion ya no se siga porque es incoherente
+(defun revisionvar (expresion hecho)
+	(cond ((null (car expresion)) nil)
+		((AND (equal (caaar expresion) (car hecho)) (equal (cdaar expresion) (cdr hecho))) t)
+			(t (revisionvar (append (list (cdar expresion)) (cdr expresion)) hecho))
+	)
+)
+;Entrada:
+;(revisionvar '(((PMissile M2)(POwns Nono M2))(PSells West M2 Nono)) '(PMissile M1))
+;Salida:
+;nil
+
+;=================FUNCION MODIFEXP==================
+;SE USA EN FUNCION:
+;Esta funcion modifica una expresion cambiando las variables por los valores del hecho
+(defun modifexp (expresion hecho)
+	(cond ((null expresion) nil)
+		(t (cambiovariables expresion (variable (buscantecedente expresion hecho) hecho) (valorvariable (buscantecedente expresion hecho) hecho)))
+	)
+)
+;Entrada
+;(modifexp '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '(PMissile M1))
+;Salida:
+;(((PMISSILE M1) (POWNS NONO M1)) (PSELLS WEST M1 NONO))
+
+;=================FUNCION NUEVASEXP==================
+;SE USA EN FUNCION:
+;Esta funcion coge un hecho y de acuerdo a ese hecho modifica todas las expresiones ya sea cambiando variable o eliminando expresion
+(defun nuevasexp (expresiones hecho final)
+	(cond ((null expresiones) final)
+		;((AND (equal (revisionvar (car expresiones) hecho) nil)(equal final nil))(nuevasexp (cdr expresiones) final))
+		((AND (equal (hayvariables (car expresiones) hecho) t)(equal final nil))
+				(nuevasexp (cdr expresiones) hecho (list (modifexp (car expresiones) hecho))))
+			((equal (hayvariables (car expresiones) hecho) t)
+					(nuevasexp (cdr expresiones) hecho (append (list final) (list (modifexp (car expresiones) hecho)))))
+				((AND (AND (equal (hayvariables (car expresiones) hecho) nil)(equal (revisionvar (car expresiones) hecho) t))
+						(equal final nil))(nuevasexp (cdr expresiones) hecho (list (car expresiones))))
+					((AND (equal (hayvariables (car expresiones) hecho) nil)(equal (revisionvar (car expresiones) hecho) t))
+							(nuevasexp (cdr expresiones) hecho (append (list final) (list (car expresiones)))))
+						((AND (equal (revisionvar (car expresiones) hecho) nil)(equal final nil))
+								(nuevasexp (cdr expresiones) hecho final))
+							((equal (revisionvar (car expresiones) hecho) nil)(nuevasexp (cdr expresiones) hecho final))
+	)
+)
+;(nuevasexp '((((PMissile M1)(POwns Nono M1))(PSells West M1 Nono))(((PMissile M2)(POwns Nono M2))(PSells West M2 Nono))) '(POwns Nono M1) '())
+;(nuevasexp '((((PMissile x)(POwns Nono x))(PSells West x Nono))) '(PMissile M1) '())
+;Salida:
+;((((PMISSILE M1) (POWNS NONO M1)) (PSELLS WEST M1 NONO)))
+
+;=================FUNCION HECHOSUSABLES2==================
+;SE USA EN FUNCION:
+;Esta funcion saca todos los hechos usables en una expresion enlistados por nivel de bloques del antecedente
+(defun hechosusables2 (expresion hechos finales)
+	(cond ((null (car expresion)) finales)
+		(t (hechosusables2 (append (list (cdar expresion)) (cdr expresion)) hechos (append finales (list (hechosbloque (caar expresion) hechos '())))))
+	)
+)
+;Entrada:
+;(hechosusables2 '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)) '())
+;Salida:
+;(((PMISSILE M3) (PMISSILE M2) (PMISSILE M1)) ((POWNS NONO M2) (POWNS NONO M1)))
+
+;=================FUNCION NUEVOSVALORES==================
+;SE USA EN FUNCION:
+;Esta funcion usa esos hecho sde cada bloque de los antecedentes y saca las nuevas posibles expresiones
+(defun nuevosvalores (expresiones hechos final)
+	(cond ((null hechos) final)
+		((equal final nil)(nuevosvalores expresiones (cdr hechos) (nuevasexp expresiones (car hechos) '())))
+		(t (nuevosvalores expresiones (cdr hechos) (append final (nuevasexp expresiones (car hechos) '()))))
+	)
+)
+;Entrada:
+;(nuevosvalores '((((PMISSILE x) (POWNS NONO x)) (PSELLS WEST x NONO))) '((PMISSILE M3) (PMISSILE M2) (PMISSILE M1)) '())
+;Salida:
+;((((PMISSILE M3) (POWNS NONO M3)) (PSELLS WEST M3 NONO)) (((PMISSILE M2) (POWNS NONO M2)) (PSELLS WEST M2 NONO)) (((PMISSILE M1) (POWNS NONO M1)) (PSELLS WEST M1 NONO)))
 
 ;=================FUNCION SECUMPLE==================
 ;SE USA EN FUNCION: Desenrollar
@@ -126,6 +330,20 @@
 ) 
 ;Entrada:
 ;(secumple '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((PMissile M1)(PAmerican West)(PEnemy Nono America)(POwns Nono M1)))
+;Salida:
+; T
+
+;=================FUNCION ANTESTA==================
+;SE USA EN FUNCION: secumple
+;Esta funcion mira si un antecedente se encuentra en los hechos (no importa las variables que tiene)
+(defun antesta (antecedente hechos)
+	(cond ((null hechos) nil)
+		((equal (car antecedente) (caar hechos)) t)
+			(t (antesta antecedente (cdr hechos)))
+	)
+)
+;Entrada:
+;(antesta '(PEnemy x America) '((POwns Nono M1)(PMissile M1)(PAmerican West)(PEnemy Nono America)))
 ;Salida:
 ; T
 
@@ -143,94 +361,46 @@
 ;Salida:
 ; T
 
-;=================FUNCION BUSCARHECHO==================
-;SE USA EN FUNCION: nuevaexpresion
-;Esta funcion lo que hace es encontrar cual es el hecho que puede utilizar para el cambio de variable para un antecedente
-(defun buscarhecho (antecedente hechos)
-	(cond ((null hechos) nil)
-		((equal (caar hechos) (car antecedente))(car hechos))
-			(t (buscarhecho antecedente (cdr hechos)))
+;=================FUNCION FINAL==================
+;SE USA EN FUNCION: sacarhechos
+(defun final (expresiones hechos)
+	(cond ((null (car hechos)) expresiones)
+		(t (final (nuevosvalores expresiones (car hechos) '()) (cdr hechos)))
 	)
 )
 ;Entrada:
-;(buscarhecho '(POwns Nono x) '((PMissile M1)(PAmerican West)(PEnemy Nono America)(POwns Nono M1)))
+;(final '((((PMissile x)(POwns Nono x))(PSells West x Nono))) '(((PMISSILE M3) (PMISSILE M2) (PMISSILE M1)) ((POWNS NONO M2) (POWNS NONO M1))))
 ;Salida:
-;(POWNS NONO M1)
+;((((PMISSILE M2) (POWNS NONO M2)) (PSELLS WEST M2 NONO))(((PMISSILE M1) (POWNS NONO M1)) (PSELLS WEST M1 NONO)))
 
-;=================FUNCION VARIABLE==================
-;SE USA EN FUNCION: nuevaexpresion
-;Esta funcion me devuelve las variables que voy a cambiar de un antecedente de acuerdo a un hecho
-(defun variable (antecedente hecho)
-	(cond ((null antecedente) nil)
-		((AND (equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car antecedente)) t)
-			(equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car hecho)) nil))
-				(append (list (car antecedente)) (variable (cdr antecedente) (cdr hecho))))
-			(t (variable (cdr antecedente) (cdr hecho)))
-	)
-)
-;Entrada:
-;(variable '(PSells x y z) '(PSells West M1 Nono))
-;Salida:
-; (X Y Z)
-
-;=================FUNCION VALORVARIABLE==================
-;SE USA EN FUNCION: nuevaexpresion
-(defun valorvariable (antecedente hecho)
-	(cond ((null antecedente) nil)
-		((AND (equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car antecedente)) t)
-			(equal (buscarelem '(a b c d e f g h i j k l m n o q r s u v w x y z) (car hecho)) nil))
-				(append (list (car hecho)) (valorvariable (cdr antecedente) (cdr hecho))))
-			(t (valorvariable (cdr antecedente) (cdr hecho)))
-	)
-)
-;Entrada:
-;(valorvariable '(PSells x y z) '(PSells West M1 Nono))
-;Salida:
-; (WEST M1 NONO)
-
-;=================FUNCION CAMBIOVARIABLES==================
-;SE USA EN FUNCION: nuevaexpresion
-;Esta funcion cambia todas las variables de la expresion por los valores nuevos
-(defun cambiovariables (expresion variables valores)
-	(cond ((null variables) expresion)
-		(t (cambiovariables (cambiofinal expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
-	)
-)
-;Entrada:
-;(cambiovariables '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) '(x) '(West))
-;Salida:
-;(((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z)) (PCRIMINAL WEST))
-
-
-
-;=================FUNCION NUEVAEXPRESION==================
+;=================FUNCION SACARHECHOS==================
 ;SE USA EN FUNCION: nuevohecho
-;Esta funcion saca de una expresion, la nueva expesion con las variables cambiadas
-(defun nuevaexpresion (expresion hechos)
-	(cond ((null expresion) nil)
-		;(t (cambiovariables expresion (variable (car expresion) (buscarhecho (car expresion) hechos)) (valorvariable (car expresion) (buscarhecho (car expresion) hechos))))
-		(t (cambiovariables expresion (variable (caar expresion)(buscarhecho (caar expresion) hechos)) (valorvariable (caar expresion) (buscarhecho (caar expresion) hechos))))
+(defun sacarhechos (expresiones final)
+	(cond ((null expresiones) final)
+		((equal final nil)(sacarhechos (cdr expresiones) (cdar expresiones)))
+			(t (sacarhechos (cdr expresiones) (append final (cdar expresiones))))
 	)
 )
+;(sacarhechos '((((PMISSILE M3)) (PWEAPON M3)) (((PMISSILE M2)) (PWEAPON M2)) (((PMISSILE M1)) (PWEAPON M1))) '())
 
-;(nuevaexpresion '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((PMissile M1)(PAmerican West)(PEnemy Nono America)(POwns Nono M1)))
+;Entrada:
+;(hechosusables2 '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)) '())
+;Salida:
+;(((PMISSILE M3) (PMISSILE M2) (PMISSILE M1)) ((POWNS NONO M2) (POWNS NONO M1)))
 
-
-;=================FUNCION NUEVOHECHO==================
-;SE USA EN FUNCION: Desenrollar
-;Esta funcion lo que hace es de una expresion que si se cumple, coge los hechos que hay y saca un nuevo hecho
+;=================FUNCION SACARHECHOS==================
+;SE USA EN FUNCION: forward
+;Esta funcion saca los nuevos hechos dado una expresion y los hechos del kb
 (defun nuevohecho (expresion hechos)
-	(cond ((null expresion) nil)
-		((equal (car expresion) nil) (cdr expresion))
-			(t (nuevohecho (append (list (cdar (nuevaexpresion expresion hechos)))(cdr (nuevaexpresion expresion hechos))) hechos))
-			;Cambia en la ultima linea expresion por la expresion con las nuevas variables reemplazadas
-			
+	(cond ((null hechos) nil)
+		(t (sacarhechos (final (list expresion) (hechosusables2 expresion hechos '())) '()))
 	)
 )
 ;Entrada:
-;(nuevohecho '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((PMissile M1)(PAmerican West)(PEnemy Nono America)(POwns Nono M1)))
+;(nuevohecho '(((PMissile x)(POwns Nono x))(PSells West x Nono)) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)))
+;(nuevohecho '(((PMissile x))(PWeapon x)) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)))
 ;Salida:
-;((PSELLS WEST M1 NONO))
+;((PWEAPON M3) (PWEAPON M2) (PWEAPON M1))
 
 ;===============FUNCION DESENROLLAR================
 ;SE USA EN FUNCION: forward
@@ -249,9 +419,9 @@
 	)
 )
 ;Entrada:
-;(desenrollar '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))) '((POwns Nono M1)(PMissile M1)(PAmerican West)(PEnemy Nono America)))
+;(desenrollar '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))) '((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA)))
 ;Salida:
-;((POWNS NONO M1) (PMISSILE M1) (PAMERICAN WEST) (PENEMY NONO AMERICA) (PSELLS WEST M1 NONO) (PWEAPON M1) (PHOSTILE NONO) (PCRIMINAL WEST))
+;((POWNS NONO M1) (PMISSILE M1) (POWNS NONO M2) (PAMERICAN WEST) (PMISSILE M2) (PMISSILE M3) (PENEMY NONO AMERICA) (PSELLS WEST M2 NONO) (PSELLS WEST M1 NONO) (PWEAPON M3) (PWEAPON M2) (PWEAPON M1) (PHOSTILE NONO) (PCRIMINAL WEST))
 
 ;=================FUNCION ENCONTROHECHO==================
 ;SE USA EN FUNCION: forward
@@ -277,7 +447,7 @@
 	)
 )
 ;Entrada:
-;(forward '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))) '(PCriminal West))
+;(forward '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(()(POwns Nono M2))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PMissile M2))(()(PMissile M3))(()(PEnemy Nono America))) '(PCriminal West))
 ;Salida:
 ; T
 
@@ -293,58 +463,19 @@
 
 
 
-;-------------------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------------------
-;__________________________________Razonamiento Hacia Atras_________________________________ 
-;-------------------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------------------
 
 
-;=================FUNCION CAMBIOVARBACKWARD==================
-;SE USA EN FUNCION: expmodificada
-;Esta funcion cambia todas las variables del antecedente por los valores nuevos
-(defun cambiovarbackward (expresion variables valores)
-	(cond ((null variables) expresion)
-		(t (cambiovariables (remplazo expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
-	)
-)
-;Entrada:
-;(cambiovariables '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))) '(x) '(West))
-;Salida:
-;(((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z)) (PCRIMINAL WEST))
 
-;=================FUNCION ENCONTROHECHO==================
-;SE USA EN FUNCION: basetrabajo
-;Esta funcion de acuerdo a una expresion y a un hecho, devuelve la expresion pero con la modificacion de variables
-(defun expmodificada (expresion hecho)
-	(cond ((null expresion) nil)
-		((equal (caadr expresion) (car hecho))(cambiovarbackward (car expresion) (variable (cadr expresion) hecho) (valorvariable (cadr expresion) hecho)))
-			(t nil)
-	)
-)
-;Entrada:
-;(expmodificada '(((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x)) '(PCriminal West))
-;Salida:
-;((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z))
 
-;=================FUNCION ENCONTROHECHO==================
-;SE USA EN FUNCION: backward
-;Esta funcion trae de acuerdo a un hecho que se busca, sus antecedentes con el cual se empieza a trabajar el backward
-(defun basetrabajo (kb hecho)
-	(cond ((null kb) nil)
-		((equal (caadar kb) (car hecho)) (expmodificada (car kb) hecho))
-			(t (basetrabajo (cdr kb) hecho))
-	)
-)
 
-;Entrada:
-;(basetrabajo '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))) '(PCriminal West))
-;Salida:
-;((PAMERICAN WEST) (PWEAPON Y) (PSELLS WEST Y Z) (PHOSTILE Z))
 
-;=================FUNCION HECHOSEXP==================
+
+
+
+;-------------------------------------------------------------------------------------------
+;##################################Razonamiento Hacia Atras################################# 
+
+;=================FUNCION ENCHECHOS==================
 ;SE USA EN FUNCION: estahecho
 ;Esta funcion dice si existe al menos 1 hecho que pueda comparar para ver si puede suplir la expresion
 (defun enchechos (exp hechoskb)
@@ -413,8 +544,10 @@
 		((equal (enchechos expresion hechoskb) t)(validahecho expresion (hechosexp expresion hechoskb '())))
 	)
 )
+
 ;Entrada:
-;(estahecho '(Pmissile x) '((POWNS NONO M1) (PMISSILE M1) (PAMERICAN WEST) (PENEMY NONO AMERICA) (PMissile M2)))
+;(estahecho '(Pmissile x) '((POWNS NONO M1)(PMISSILE M1)(PAMERICAN WEST)(PMISSILE M2)(POWNS NONO M2)(PMISSILE M3)(PENEMY NONO AMERICA)(PMissile M2)))
+;(estahecho '(Pmissile M1) '((POWNS NONO M1)(PMISSILE M1)(PAMERICAN WEST)(PMISSILE M2)(POWNS NONO M2)(PMISSILE M3)(PENEMY NONO AMERICA)(PMissile M2)))
 ;Salida:
 ;T
 
@@ -544,7 +677,6 @@
 ;Salida:
 ;T
 
-
 ;=================FUNCION MODIFICACION==================
 ;SE USA EN FUNCION: nuevasexp
 ;si la funcion hayextra da T, entonces hay que hacer una modificacion de la expresion
@@ -563,7 +695,7 @@
 ;(((PMISSILE X) (POWNS X A Z)) (PSELLS X Z))
 
 ;=================FUNCION CAMBIOVARIABLES2==================
-;SE USA EN FUNCION: nuevasexp
+;SE USA EN FUNCION: nuevasexp2
 ;Esta funcion cambia todas las variables de la expresion por los valores nuevos
 (defun cambiovariables2 (expresion variables valores)
 	(cond ((null variables) expresion)
@@ -582,7 +714,7 @@
 ;SE USA EN FUNCION: backward
 ;expdeexp es la expresion completa de el consecuente exp
 ;Esta funcion lo que hace es que de acuerdo a una expresion y a un bloque de expresion, se haran los cambios de variables
-(defun nuevasexp (exp expdeexp)
+(defun nuevasexp2 (exp expdeexp)
 	(cond ((null exp) nil)
 		;((equal (hayextra exp expdeexp) t)(cambiovariables (modificacion exp expdeexp) (cdadr (modificacion exp expdeexp)) (cdr exp)))
 		;	(t (cambiovariables expdeexp (cdadr expdeexp) (cdr exp)))
@@ -592,7 +724,7 @@
 	)
 )
 ;Entrada:
-;(nuevasexp '(PSells West y) '(((PMissile x)(POwns x y z))(PSells x z)))
+;(nuevasexp2 '(PSells West y) '(((PMissile x)(POwns x y z))(PSells x z)))
 ;Salida:
 ;((PMISSILE WEST) (POWNS WEST A Y))
 
@@ -610,15 +742,46 @@
 ;Salida:
 ;(((PENEMY X AMERICA)) (PHOSTILE X))
 
+;=================FUNCION VARNUEVAS==================
+;SE USA EN FUNCION: backward
+;Esta funcion cambia las variables de expresiones por las nuevas
+(defun varnuevas (expresion variables valores)
+	(cond ((null variables) expresion) 
+		(t (varnuevas (remplazo expresion (car variables) (car valores)) (cdr variables) (cdr valores)))
+	)
+)
+;Entrada:
+;(varnuevas '((PSells West y z)(PHostile z)) '(y) '(M1))
+;Salida:
+;((PSELLS WEST M1 Z) (PHOSTILE Z))
+
+
+;=================FUNCION VALORESCAM==================
+;SE USA EN FUNCION: backward
+;esta funcion coge una lista de hechos y duplica todo lo que lleva por cada hecho que hay
+(defun valorescam (expresion hechosexp final) 
+	(cond ((null hechosexp) final)
+		(t (valorescam expresion (cdr hechosexp) (append (list (cdr (varnuevas expresion (variable (car expresion) (car hechosexp)) (valorvariable (car expresion) (car hechosexp))))) final)))
+	)
+)
+;Entrada:
+;(valorescam '((PMissile y)(PSells West Nono M1)(PHostile z)) '((PMISSILE M1)(PMISSILE M2)(PMISSILE M3)) '())
+;Salida:
+;(((PSELLS WEST NONO M1) (PHOSTILE Z)) ((PSELLS WEST NONO M1) (PHOSTILE Z)) ((PSELLS WEST NONO M1) (PHOSTILE Z)))
+
+
+
+
+
+
+
 ;=================FUNCION BACKWARD==================
 ;Esta es la funcion final de backward
 (defun backward (expresion kb)
 	(cond ((null expresion) t)
-		;((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (cdr expresion) kb))
-			;((equal (hayant expresion (expresioneskb kb)) t)(backward (append (nuevasexp (car expresion) (expresioneskb kb)) (cdr expresion)) kb))
-			;Revisar que ese append este funcionando
-			((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (cdr expresion) kb))
-			((equal (hayant (car expresion) (expresioneskb kb)) t)(backward (append (nuevasexp (car expresion) (expresiondeexp (car expresion) kb)) (cdr expresion)) kb))
+			;((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (cdr expresion) kb))
+			((equal (estahecho (car expresion) (hechoskb kb)) t)(backward (varnuevas (cdr expresion) (variable (car expresion) (buscarhecho (car expresion) (hechoskb kb))) (valorvariable (car expresion) (buscarhecho (car expresion) (hechoskb kb)))) kb))
+			((equal (hayant (car expresion) (expresioneskb kb)) t)(backward (append (nuevasexp2 (car expresion) (expresiondeexp (car expresion) kb)) (cdr expresion)) kb))
 				(t nil)
 	)
 )
@@ -631,13 +794,23 @@
 
 
 
-
-
-
-
-
-
-
+;Esta es la funcion Definitiva del backward
+(defun backward2 (expresion kb)
+	(cond ((null expresion) nil)
+		((equal (car expresion) nil) t)
+			((equal (estahecho (caar expresion) (hechoskb kb)) t)
+					;(backward2 (valorescam (car expresion) (hechosexp (caar expresion) (hechoskb kb) '()) '()) kb))
+					(backward2 (append (valorescam (car expresion) (hechosexp (caar expresion) (hechoskb kb) '()) '()) (cdr expresion)) kb))
+				((equal (hayant (caar expresion) (expresioneskb kb)) t)
+						;(backward2 (list (append (nuevasexp2 (caar expresion) (expresiondeexp (caar expresion) kb)) (cdar expresion)) (cdr expresion)) kb))
+						(backward2 (append (list (append (nuevasexp2 (caar expresion) (expresiondeexp (caar expresion) kb)) (cdar expresion))) (cdr expresion)) kb))
+					(t (backward2 (cdr expresion) kb))
+	)
+)
+;Entrada:
+;(backward2 '(((PCriminal West))) '((((PAmerican x)(PWeapon y)(PSells x y z)(PHostile z))(PCriminal x))(()(POwns Nono M1))(()(PMissile M3))(()(PMissile M2))(()(PMissile M1))(((PMissile x)(POwns Nono x))(PSells West x Nono))(((PMissile x))(PWeapon x))(((PEnemy x America))(PHostile x))(()(PAmerican West))(()(PEnemy Nono America))))
+;Salida:
+;T
 
 
 
